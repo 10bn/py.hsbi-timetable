@@ -1,0 +1,29 @@
+# Compiled Python files
+*.pyc
+
+# OS generated files
+.DS_Store
+
+# Sensitive config files
+config/token.json
+config/secrets.yaml
+config/client_secret.json
+config/secrets-sample.yaml
+
+# Output files
+output/
+
+# Visual Studio Code settings
+.vscode/
+
+# Downloaded files
+downloads/
+
+# Exclude_dirs
+dist/
+build/
+.git/
+
+
+__pycache__/
+*.egg-info/

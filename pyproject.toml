@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timetable_scraper"
+version = "1.0.0"
+authors = [{ name = "Max Uhsadel", email = "max.uhsadel@gmail.com" }]
+description = "A package to scrape the HSBI timetable."
+readme = "README.md"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "pandas==1.5.3",
+    "pytz==2024.1",
+    "PyYAML==6.0.1",
+    "webdavclient3==3.14.6",
+    "PyMuPDF==1.24.2",
+    "google-api-python-client==2.127.0",
+    "google-auth-oauthlib==1.2.0",
+    "openai==1.25.0",
+    "camelot-py @ git+https://github.com/camelot-dev/camelot.git@v0.11.0",
+    "opencv-python==4.9.0.80",
+    "ghostscript==0.7"
+]
