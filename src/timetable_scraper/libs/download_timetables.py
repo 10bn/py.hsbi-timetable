@@ -1,6 +1,6 @@
 import logging
 from webdav3.client import Client
-from libs.helper_functions import load_secrets
+from timetable_scraper.libs.helper_functions import load_secrets
 
 # Configure logging
 logging.basicConfig(

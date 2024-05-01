@@ -1,8 +1,8 @@
 import logging
-from libs.log_config import setup_logger
-from libs.helper_functions import load_secrets
-from libs.helper_functions import save_events_to_json
-from libs.process_raw_data import process_pdf_timetable
+from timetable_scraper.libs.log_config import setup_logger
+from timetable_scraper.libs.helper_functions import load_secrets
+from timetable_scraper.libs.helper_functions import save_events_to_json
+from timetable_scraper.libs.process_raw_data import process_pdf_timetable
 
 setup_logger()
 
@@ -25,7 +25,9 @@ def main():
             return
 
         logging.info(f"Processing PDF timetable at {pdf_path}.")
-        timetable_final = process_pdf_timetable(pdf_path, api_key)
+        timetable_final = process_pdf_timetable(
+            pdf_path, api_key, multi_threaded=True
+        )
 
         if timetable_final is None:
             logging.error("Failed to process PDF timetable.")

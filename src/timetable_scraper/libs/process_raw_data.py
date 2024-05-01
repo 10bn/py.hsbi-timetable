@@ -1,10 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
 import logging
 import pandas as pd
-from libs.log_config import setup_logger
-from libs.helper_functions import load_secrets, save_to_csv
-from libs.get_timetable_ver import extract_version
-from libs.openai_parser import openai_parser
-from libs.camelot_raw_pdf_data import extract_raw_data
+from timetable_scraper.libs.log_config import setup_logger
+from timetable_scraper.libs.helper_functions import load_secrets, save_to_csv
+from timetable_scraper.libs.get_timetable_ver import extract_version
+from timetable_scraper.libs.openai_parser import openai_parser
+from timetable_scraper.libs.camelot_raw_pdf_data import extract_raw_data
 
 # Set up the logger
 setup_logger()
@@ -115,7 +116,9 @@ def parse_details(raw_details, api_key):
     # Check if raw_details is nan and return a default value if it is
     if pd.isnull(raw_details):
         return [{"course": "", "lecturer": "", "location": "", "details": ""}]
+    # Drop row where event details are empty
 
+    
     detail_lines = raw_details.split("\n")
     if len(detail_lines) >= 2:
         return openai_parser(api_key, raw_details)
@@ -140,7 +143,7 @@ def parse_details(raw_details, api_key):
         ]
 
 
-def expand_event_details(df, api_key):
+def expand_event_details_multi_threaded(df, api_key, threads=10):
     # Define new columns in the DataFrame
     df_expanded = pd.DataFrame(
         columns=[
@@ -154,56 +157,114 @@ def expand_event_details(df, api_key):
         ]
     )
 
-    # Iterate over each row in the DataFrame
-    for index, row in df.iterrows():
-        # Parse the raw_details using the provided parse_details function
-        parsed_details = parse_details(row["raw_details"], api_key)
-
-        # Handle multiple events returned by the AI parser or single event from direct parsing
+    def process_row(row):
+        parsed_details = parse_details(row.raw_details, api_key)
+        expanded_rows = []
         for event_details in parsed_details:
             new_row = {
-                "date": row["date"],
-                "start_time": row["start_time"],
-                "end_time": row["end_time"],
-                "course": event_details.get("course", ""),
-                "lecturer": ", ".join(event_details.get("lecturer", []))
-                if isinstance(event_details.get("lecturer"), list)
-                else event_details.get("lecturer", ""),
-                "location": event_details.get("location", ""),
-                "details": event_details.get("details", ""),
+                "date": row.date,
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "course": event_details.get("course", ""),  # type: ignore
+                "lecturer": ", ".join(event_details.get("lecturer", []))  # type: ignore
+                if isinstance(event_details.get("lecturer"), list)  # type: ignore
+                else event_details.get("lecturer", ""),  # type: ignore
+                "location": event_details.get("location", ""),  # type: ignore
+                "details": event_details.get("details", ""),  # type: ignore
             }
-            # Create a DataFrame from new_row and concatenate it with df_expanded
-            new_row_df = pd.DataFrame([new_row])
-            df_expanded = pd.concat(
-                [df_expanded, new_row_df], ignore_index=True
-            )
+            expanded_rows.append(new_row)
+        return expanded_rows
+
+    # Use ThreadPoolExecutor to parallelize row processing
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        # Process each row in parallel
+        expanded_rows = list(
+            executor.map(process_row, df.itertuples(index=False))
+        )
+
+    # Flatten the list of lists into a single list of dictionaries
+    expanded_rows = [item for sublist in expanded_rows for item in sublist]
+
+    # Convert the list of dictionaries into a DataFrame
+    df_expanded = pd.DataFrame(expanded_rows)
 
     return df_expanded
 
 
-def process_pdf_timetable(pdf_path, api_key):
+def expand_event_details_single_threaded(df, api_key):
+    # Define new columns in the DataFrame
+    df_expanded = pd.DataFrame(
+        columns=[
+            "date",
+            "start_time",
+            "end_time",
+            "course",
+            "lecturer",
+            "location",
+            "details",
+        ]
+    )
+
+    def process_row(row):
+        parsed_details = parse_details(row.raw_details, api_key)
+        expanded_rows = []
+        for event_details in parsed_details:
+            new_row = {
+                "date": row.date,
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "course": event_details.get("course", ""), # type: ignore
+                "lecturer": ", ".join(event_details.get("lecturer", [])) # type: ignore
+                if isinstance(event_details.get("lecturer"), list) # type: ignore
+                else event_details.get("lecturer", ""), # type: ignore
+                "location": event_details.get("location", ""), # type: ignore
+                "details": event_details.get("details", ""), # type: ignore
+            }
+            expanded_rows.append(new_row)
+        return expanded_rows
+
+    # Process each row sequentially
+    expanded_rows = []
+    for index, row in df.iterrows():
+        expanded_rows += process_row(row)
+
+    # Convert the list of dictionaries into a DataFrame
+    df_expanded = pd.DataFrame(expanded_rows)
+
+    return df_expanded
+
+
+
+# Main Processing Function
+def process_pdf_timetable(pdf_path, api_key, multi_threaded=False):
     # Extract the raw data from the PDF
     df = extract_raw_data(pdf_path)
     # df = read_csv(f"{output_dir}/df_raw.csv")
     if df is None:
         logging.error("Failed to extract raw data from the PDF.")
-        return
+        return None  # Return None to indicate failure
 
     # Get the current year from the PDF
     current_year = get_year(pdf_path)
     if current_year is None:
         logging.error("Failed to extract the current year from the PDF.")
-        return
+        return None  # Return None to indicate failure
+
+    # Choose the appropriate function based on multi_threaded flag
+    expand_function = expand_event_details_multi_threaded if multi_threaded else expand_event_details_single_threaded
 
     # Process the DataFrame
     df_final = (
         df.pipe(melt_df)
         .pipe(format_date, current_year)
         .pipe(split_time_slot)
-        .pipe(expand_event_details, api_key)
+        .pipe(expand_function, api_key)
+        .dropna(subset=['details'])  # Drop rows where event details are empty
         .sort_values(by=["date", "start_time"])
     )
     return df_final
+
+
 
 
 def main():
@@ -212,7 +273,7 @@ def main():
     output_dir = "output"
     api_key = secrets.get("api_key")
 
-    timetable_final = process_pdf_timetable(pdf_path, api_key)
+    timetable_final = process_pdf_timetable(pdf_path, api_key, multi_threaded=True)
 
     # Save the processed DataFrame
     save_to_csv(timetable_final, f"{output_dir}/timetable_final.csv")

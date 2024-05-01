@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 import yaml
-from libs.log_config import setup_logger
+from timetable_scraper.libs.log_config import setup_logger
 
 # Set up the logger
 setup_logger()
