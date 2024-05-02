@@ -9,9 +9,7 @@ def setup_logger():
     if not logger.handlers:
         # Configure the basic logging settings only if not already configured
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",
         )
 
-    openai_logger = logging.getLogger("openai")
-    openai_logger.setLevel(logging.CRITICAL + 1)
