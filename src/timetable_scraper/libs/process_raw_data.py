@@ -1,12 +1,12 @@
-import logging
-
 import pandas as pd
 from timetable_scraper.libs.camelot_raw_pdf_to_df import create_df_from_pdf
-from timetable_scraper.libs.get_timetable_ver import extract_version
-from timetable_scraper.libs.helper_functions import load_secrets, save_to_csv
 from timetable_scraper.libs.log_config import setup_logger
-from timetable_scraper.libs.openai_parser import openai_parser
-from typing import List, Dict
+from timetable_scraper.libs.openai_parser_df import openai_parser
+from timetable_scraper.libs.helper_functions import (
+    save_to_csv,
+    save_events_to_json,
+    load_secrets,
+)
 
 # Set up the logger
 setup_logger()
@@ -17,44 +17,50 @@ setup_logger()
 ########################################################################################
 
 
-def parse_raw_details(
-    api_key: str, raw_details: List[str]
-) -> List[Dict[str, str]]:
-    """
-    Extracts timetable details from the raw details provided as a list of strings and returns a list of dictionaries.
-    Each dictionary contains details for a single event in the timetable with keys:
-    'course', 'lecturer', 'location', 'additional_info'.
-    Usually there is only one event per raw_details, but if the list is longer than 3, it can be assumed that
-    the raw details contain multiple events. In this case, we will use the openai_parser function to extract the
-    details for each event.
+def process_data_with_openai_parser(df, api_key):
+    def parse_details(raw_details):
+        if pd.isnull(raw_details):
+            return [{"course": "", "lecturer": "", "location": "", "details": ""}]
+        detail_lines = raw_details.split("\n")
+        if len(detail_lines) >= 2:
+            return openai_parser(api_key, raw_details)
+        else:
+            return [
+                {
+                    "course": detail_lines[0].strip() if len(detail_lines) > 0 else "",
+                    "lecturer": detail_lines[1].strip()
+                    if len(detail_lines) > 1
+                    else "",
+                    "location": detail_lines[2].strip()
+                    if len(detail_lines) > 2
+                    else "",
+                    "details": detail_lines[3].strip() if len(detail_lines) > 3 else "",
+                }
+            ]
 
-    Args:
-        api_key (str): The API key used for authorization or data retrieval.
-        raw_details (List[str]): The list of raw event details to be parsed.
+    def process_row(row):
+        parsed_details = parse_details(row.raw_details)
+        expanded_rows = []
+        for event_details in parsed_details:
+            new_row = {
+                "date": row.date,
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "course": event_details.get("course", ""),
+                "lecturer": ", ".join(event_details.get("lecturer", []))
+                if isinstance(event_details.get("lecturer"), list)
+                else event_details.get("lecturer", ""),
+                "location": event_details.get("location", ""),
+                "details": event_details.get("details", ""),
+            }
+            expanded_rows.append(new_row)
+        return expanded_rows
 
-    Returns:
-        List[Dict[str, str]]: A list of dictionaries, each containing event details.
-    """
+    expanded_rows = []
+    for _, row in df.iterrows():
+        expanded_rows.extend(process_row(row))
 
-    # Check if raw_details has more than three events to process
-    if len(raw_details) > 3:
-        # Use openai_parser to handle multiple events
-        structured_data = openai_parser(api_key, raw_details)
-        return structured_data
-    # Otherwise, handle a single event
-    for detail in raw_details:
-        # Parse the details for each event here
-        # read the 
-        parts = detail.split(",")
-        event = {
-            "course": parts[0].strip() if len(parts) > 0 else "",
-            "lecturer": parts[1].strip() if len(parts) > 1 else "",
-            "location": parts[2].strip() if len(parts) > 2 else "",
-            "additional_info": parts[3].strip() if len(parts) > 3 else "",
-        }
-        timetable.append(event)
-
-    return timetable
+    return pd.DataFrame(expanded_rows)
 
 
 # "Programmieren in C,
@@ -75,4 +81,6 @@ if __name__ == "__main__":
     output_dir = "output"
     api_key = secrets.get("api_key")
     events = create_df_from_pdf(pdf_path)
+    df_final = process_data_with_openai_parser(api_key, events)
+    save_events_to_json(df_final, output_dir)
     print(events.head())

@@ -1,5 +1,6 @@
 import json
 import logging
+import pandas as pd
 from openai import OpenAI
 from timetable_scraper.libs.helper_functions import load_secrets
 from timetable_scraper.libs.log_config import setup_logger
@@ -7,8 +8,9 @@ from timetable_scraper.libs.log_config import setup_logger
 # Set up the logger
 setup_logger()
 
+
 def openai_parser(api_key, details):
-    """Parse complex multi-line timetable event details into structured JSON using OpenAI API."""
+    """Parse complex multi-line timetable event details into structured JSON using OpenAI API and return a dataframe."""
     client = OpenAI(api_key=api_key)
     failure_response = {
         "course": "!!! AiParsing Failure!!!",
@@ -40,7 +42,7 @@ def openai_parser(api_key, details):
                 continue  # Continue the retry loop if no response content
             structured_data = json.loads(structured_response)  # Parse the JSON here
             logging.info("Successfully parsed the response.")
-            return structured_data
+            return pd.DataFrame([structured_data])  # Convert JSON data to DataFrame
         except json.JSONDecodeError as e:
             logging.warning(
                 f"Retry {attempt + 1}/{max_retries}: Failed to parse JSON response. {str(e)} Trying again."
@@ -53,11 +55,12 @@ def openai_parser(api_key, details):
                 logging.critical(
                     "Error parsing details after several attempts, please check the input format and try again."
                 )
-                return failure_response
+                return pd.DataFrame(
+                    [failure_response]
+                )  # Return failure response as DataFrame
 
     logging.error("Failed to obtain a valid response after multiple attempts.")
-    return failure_response
-
+    return pd.DataFrame([failure_response])  # Return failure response as DataFrame
 
 
 if __name__ == "__main__":

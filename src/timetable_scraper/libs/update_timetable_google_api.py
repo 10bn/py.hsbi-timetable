@@ -9,7 +9,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-import yaml
 
 #
 # Constants for authentication and calendar settings
@@ -33,9 +32,7 @@ class GoogleCalendarAPI:
     def authenticate(self):
         creds = None
         if os.path.exists(TOKEN_JSON_FILE):
-            creds = Credentials.from_authorized_user_file(
-                TOKEN_JSON_FILE, SCOPES
-            )
+            creds = Credentials.from_authorized_user_file(TOKEN_JSON_FILE, SCOPES)
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
@@ -77,11 +74,7 @@ class GoogleCalendarAPI:
         if event_id:
             updated_event = (
                 self.service.events()
-                .update(
-                    calendarId=self.calendar_id,
-                    eventId=event_id,
-                    body=event_data,
-                )
+                .update(calendarId=self.calendar_id, eventId=event_id, body=event_data)
                 .execute()
             )
             logging.info(f'Event updated: {updated_event["summary"]}')
@@ -112,15 +105,11 @@ def sync_calendar_with_timetable(calendar_api, local_events):
     for event in local_events:
         matched_event_id = None
         for remote_event_id, remote_event in remote_events_dict.items():
-            if (
-                event["summary"] == remote_event["summary"]
-            ):  # Simplified matching logic
+            if event["summary"] == remote_event["summary"]:  # Simplified matching logic
                 matched_event_id = remote_event_id
                 break
         if matched_event_id:
-            calendar_api.create_or_update_event(
-                event, event_id=matched_event_id
-            )
+            calendar_api.create_or_update_event(event, event_id=matched_event_id)
             del remote_events_dict[matched_event_id]
         else:
             created_event = calendar_api.create_or_update_event(event)
@@ -141,9 +130,7 @@ def main():
         local_events = json.load(file)
         logging.info(f"Found {len(local_events)} events in the timetable")
 
-    updated_local_events = sync_calendar_with_timetable(
-        calendar_api, local_events
-    )
+    updated_local_events = sync_calendar_with_timetable(calendar_api, local_events)
     logging.info("Sync completed successfully")
 
     # Write the updated local events back to the local storage
