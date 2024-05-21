@@ -10,6 +10,8 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from timetable_scraper.libs.log_config import setup_logger  # Set up the logger
 
+
+setup_logger()
 logger = logging.getLogger(__name__)
 
 # Constants for authentication and calendar settings
@@ -23,7 +25,6 @@ TIME_ZONE = "Europe/Berlin"
 MAX_RESULTS = 2500
 
 
-setup_logger()
 
 
 class GoogleCalendarAPI:
