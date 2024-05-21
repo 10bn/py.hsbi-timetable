@@ -2,9 +2,9 @@ import logging
 import pandas as pd
 import yaml
 from timetable_scraper.libs.log_config import setup_logger
-
 # Set up the logger
 setup_logger()
+logger = logging.getLogger(__name__)
 
 
 def read_csv(input_path):
@@ -32,14 +32,13 @@ def load_secrets(filename="config/secrets.yaml"):
         secrets = yaml.safe_load(file)
     return secrets
 
-
 def save_events_to_json(df, output_path):
     """Save the extracted events to a JSON file."""
     try:
-        df.to_json(output_path, orient="records", lines=True)
-        logging.info(f"Saved events to: {output_path}")
+        df.to_json(output_path, orient="records", lines=False)
+        logging.info(f"Successfully saved DataFrame to {output_path}")
     except Exception as e:
-        logging.error(f"Failed to save events to {output_path}: {e}")
+        logging.error(f"Failed to save DataFrame to JSON: {e}")
 
 
 if __name__ == "__main__":

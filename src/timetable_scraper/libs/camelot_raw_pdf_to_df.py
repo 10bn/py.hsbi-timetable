@@ -5,10 +5,10 @@ import camelot
 import pandas as pd
 from timetable_scraper.libs.get_timetable_ver import extract_version
 from timetable_scraper.libs.helper_functions import save_to_csv
-from timetable_scraper.libs.log_config import setup_logger
-
 # Set up the logger
+from timetable_scraper.libs.log_config import setup_logger
 setup_logger()
+logger = logging.getLogger(__name__)
 
 ########################################################################################
 #                      SET ENVIRONMENT VARIABLES FOR GHOSTSCRIPT                       #
@@ -181,6 +181,17 @@ def convert_raw_event_data_to_list(df):
     df["raw_details"] = df["raw_details"].str.split("\n")
     return df
 
+########################################################################################
+#                       CHECK FOR MULTIPLE EVENTS IN DETAILS CELL                      #
+########################################################################################
+
+def check_multievent(df):
+    # Apply the modified logic to each entry in 'raw_details'
+    # Using a lambda function to check if the entry is a list and its length is greater than 4
+    df["multi_event"] = df['raw_details'].apply(lambda x: len(x) > 4 if isinstance(x, list) else False)
+
+    return df
+
 
 ########################################################################################
 #                                    ENTRY FUNCTION                                    #
@@ -196,8 +207,9 @@ def create_df_from_pdf(pdf_path):
     df = split_time_slot(df)
     df = convert_raw_event_data_to_list(df)
     df = format_date(df, get_year(pdf_path))
-    save_to_csv(df, "output/create_df.csv")
     df = df.sort_values(by=["date", "start_time"])
+    df = check_multievent(df)
+    save_to_csv(df, "output/create_df.csv")
     return df
 
 
@@ -205,5 +217,5 @@ if __name__ == "__main__":
     # Example usage
     pdf_path = "/Users/max/github/00_HSBI_UNI/py.hsbi-timetable/downloads/Stundenplan SoSe_2024_ELM 2.pdf"
     df = create_df_from_pdf(pdf_path)
-    print(df.head())
+    #print(df.head())
     save_to_csv(df, "output/create_df.csv")

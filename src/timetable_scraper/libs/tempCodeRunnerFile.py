@@ -75,20 +75,16 @@ class GoogleCalendarAPI:
 
     def prepare_event_data(self, event):
         try:
-            # Convert timestamp to date
-            date_timestamp = event["date"]
-            date = datetime.fromtimestamp(date_timestamp / 1000, pytz.utc)
-
-            # Combine date with start and end times
+            # Parse date and combine with start and end times
+            date_str = event["date"]
+            date = datetime.strptime(date_str, "%Y-%m-%d").date()
             start_time = datetime.strptime(event["start_time"], "%H:%M:%S").time()
             end_time = datetime.strptime(event["end_time"], "%H:%M:%S").time()
 
-            # Localize the datetime objects
+            # Use the local time zone explicitly
             local_tz = pytz.timezone(TIME_ZONE)
-            start_datetime = local_tz.localize(
-                datetime.combine(date.date(), start_time)
-            )
-            end_datetime = local_tz.localize(datetime.combine(date.date(), end_time))
+            start_datetime = local_tz.localize(datetime.combine(date, start_time))
+            end_datetime = local_tz.localize(datetime.combine(date, end_time))
 
             # Ensure lecturer is a list
             lecturer_field = event["lecturer"]
@@ -201,5 +197,5 @@ def main(dry_run=False):
 
 
 if __name__ == "__main__":
-    dry_run = False  # Set to False to perform actual operations
+    dry_run = True  # Set to False to perform actual operations
     main(dry_run)

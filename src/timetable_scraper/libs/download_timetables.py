@@ -2,10 +2,10 @@ import logging
 from webdav3.client import Client
 from timetable_scraper.libs.helper_functions import load_secrets
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+# Set up the logger
+from timetable_scraper.libs.log_config import setup_logger
+setup_logger()
+logger = logging.getLogger(__name__)
 
 
 def sync_timetables(output_path="./output/pdf_timetables/"):
